@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Mentzer Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@400;600;700;900&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #060d1a; color: #e8e8e8; font-family: 'DM Mono', monospace; min-height: 100vh; }
+  .app { max-width: 860px; margin: 0 auto; padding: 40px 20px 80px; }
+
+  .header { border-bottom: 1px solid #112240; padding-bottom: 24px; margin-bottom: 40px; }
+  .header-label { font-size: 11px; letter-spacing: 0.2em; color: #ffffff; text-transform: uppercase; margin-bottom: 8px; }
+  .header h1 { font-family: 'Barlow Condensed', sans-serif; font-size: clamp(36px,6vw,64px); font-weight: 900; line-height: 1; color: #fff; text-transform: uppercase; }
+  .header h1 span { color: #4fc3f7; }
+
+  .status-bar { display: grid; grid-template-columns: repeat(4,1fr); gap: 1px; background: #0d1f3c; border: 1px solid #0d1f3c; margin-bottom: 40px; }
+  .stat { background: #060d1a; padding: 16px 20px; }
+  .stat-label { font-size: 10px; letter-spacing: 0.18em; color: #ffffff; text-transform: uppercase; margin-bottom: 6px; }
+  .stat-value { font-family: 'Barlow Condensed', sans-serif; font-size: 28px; font-weight: 700; line-height: 1; color: #e8e8e8; }
+  .accent { color: #4fc3f7; } .warn { color: #ff6b35; } .ok { color: #4ecdc4; }
+
+  .section-title { font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #ffffff; margin-bottom: 16px; }
+
+  .workout-tabs { display: flex; gap: 1px; background: #0d1f3c; border: 1px solid #0d1f3c; margin-bottom: 32px; }
+  .workout-tab { flex: 1; background: #0a1628; border: none; padding: 14px 8px; cursor: pointer; font-family: 'Barlow Condensed', sans-serif; font-size: 15px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #ffffff; transition: all 0.15s; }
+  .workout-tab:hover { background: #0f1e36; color: #ffffff; }
+  .workout-tab.active { background: #4fc3f7; color: #060d1a; }
+  .workout-tab.next-up { color: #4fc3f7; }
+
+  .exercise-card { border: 1px solid #0d1f3c; margin-bottom: 12px; background: #080f1e; }
+  .exercise-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-bottom: 1px solid #0d1f3c; gap: 10px; }
+  .exercise-label { font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #e8e8e8; }
+  .pb-badge { font-size: 10px; letter-spacing: 0.15em; background: #4fc3f7; color: #060d1a; padding: 2px 8px; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+
+  .exercise-body { padding: 16px 18px; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: #ffffff; }
+  .field input { background: #060d1a; border: 1px solid #0d1f3c; color: #e8e8e8; font-family: 'DM Mono', monospace; font-size: 14px; padding: 8px 10px; width: 100%; outline: none; transition: border-color 0.15s; }
+  .field input:focus { border-color: #4fc3f7; }
+  .prev-value { font-size: 11px; color: #ffffff; margin-top: 2px; }
+  .prev-value span { color: #ffffff; }
+  .up { color: #4fc3f7; } .down { color: #ff6b35; } .same { color: #ffffff; }
+
+  .date-row { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+  .date-row label { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: #ffffff; white-space: nowrap; }
+  .date-row input[type=date] { background: #060d1a; border: 1px solid #0d1f3c; color: #e8e8e8; font-family: 'DM Mono', monospace; font-size: 13px; padding: 8px 12px; outline: none; }
+  .date-row input[type=date]:focus { border-color: #4fc3f7; }
+
+  .recovery-alert { background: #1a0e0a; border: 1px solid #ff6b35; color: #ff6b35; padding: 10px 16px; font-size: 11px; letter-spacing: 0.1em; margin-bottom: 20px; }
+
+  .save-area { margin-top: 24px; display: flex; align-items: center; gap: 16px; }
+  .btn-save { background: #4fc3f7; color: #060d1a; border: none; padding: 14px 36px; font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; transition: all 0.15s; }
+  .btn-save:hover { background: #81d4fa; }
+  .save-meta { font-size: 11px; color: #ffffff; letter-spacing: 0.1em; }
+
+  /* Setup panel */
+  .setup-panel { background: #080f1e; border: 1px solid #0d1f3c; padding: 24px; margin-bottom: 32px; }
+  .setup-panel p { font-size: 11px; color: #ffffff; letter-spacing: 0.1em; margin-bottom: 16px; line-height: 1.6; }
+  .setup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .setup-workout { border: 1px solid #0d1f3c; padding: 16px; }
+  .setup-workout-title { font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 700; color: #4fc3f7; text-transform: uppercase; margin-bottom: 12px; }
+  .setup-exercise-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .setup-exercise-row input { background: #060d1a; border: 1px solid #0d1f3c; color: #e8e8e8; font-family: 'DM Mono', monospace; font-size: 12px; padding: 6px 10px; flex: 1; outline: none; }
+  .setup-exercise-row input:focus { border-color: #4fc3f7; }
+  .setup-exercise-row input::placeholder { color: #ffffff; }
+  .btn-add { background: none; border: 1px solid #0d1f3c; color: #ffffff; font-size: 11px; padding: 4px 10px; cursor: pointer; font-family: 'DM Mono', monospace; transition: all 0.15s; margin-top: 4px; }
+  .btn-add:hover { border-color: #4fc3f7; color: #4fc3f7; }
+  .btn-remove { background: none; border: none; color: #ffffff; cursor: pointer; font-size: 14px; padding: 0 4px; line-height: 1; }
+  .btn-remove:hover { color: #ff6b35; }
+  .btn-save-setup { background: #4fc3f7; color: #060d1a; border: none; padding: 10px 24px; font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; margin-top: 16px; }
+  .btn-save-setup:hover { background: #81d4fa; }
+  .btn-edit-setup { background: none; border: 1px solid #0d1f3c; color: #ffffff; font-size: 11px; padding: 6px 14px; cursor: pointer; font-family: 'DM Mono', monospace; letter-spacing: 0.1em; margin-left: auto; display: block; margin-bottom: 24px; transition: all 0.15s; }
+  .btn-edit-setup:hover { border-color: #4fc3f7; color: #4fc3f7; }
+
+  .history-section { margin-top: 56px; border-top: 1px solid #0d1f3c; padding-top: 40px; }
+  .history-entry { border: 1px solid #0d1f3c; margin-bottom: 8px; }
+  .history-entry-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; background: #080f1e; cursor: pointer; gap: 12px; }
+  .history-entry-header:hover { background: #0a1628; }
+  .history-entry-date { font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 700; text-transform: uppercase; }
+  .rest-badge { font-size: 10px; letter-spacing: 0.12em; padding: 2px 8px; border: 1px solid; }
+  .rest-ok { border-color: #4ecdc4; color: #4ecdc4; } .rest-warn { border-color: #ff6b35; color: #ff6b35; }
+  .history-body { padding: 14px 18px; border-top: 1px solid #0d1f3c; background: #060d1a; display: none; }
+  .history-body.open { display: block; }
+  .history-row { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 8px; padding: 6px 0; border-bottom: 1px solid #0a1628; font-size: 12px; align-items: center; }
+  .history-row:last-child { border-bottom: none; }
+  .history-row-label { color: #ffffff; text-transform: uppercase; letter-spacing: 0.1em; font-size: 10px; }
+  .history-ex-name { color: #ffffff; text-transform: uppercase; font-size: 11px; letter-spacing: 0.08em; }
+  .delete-btn { background: none; border: 1px solid #0d1f3c; color: #ffffff; font-size: 10px; padding: 3px 8px; cursor: pointer; font-family: 'DM Mono', monospace; letter-spacing: 0.1em; transition: all 0.15s; }
+  .delete-btn:hover { border-color: #ff6b35; color: #ff6b35; }
+  .empty-state { text-align: center; padding: 60px 20px; color: #0d1f3c; font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+  .toast { position: fixed; bottom: 32px; right: 32px; background: #4fc3f7; color: #060d1a; font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 12px 24px; z-index: 999; animation: toastIn 0.2s ease; }
+  @keyframes toastIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+  @media(max-width:600px) {
+    .exercise-body { grid-template-columns: 1fr 1fr; }
+    .status-bar { grid-template-columns: 1fr 1fr; }
+    .setup-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="header-label">High Intensity Training</div>
+    <h1>MENTZER<br><span>TRACKER</span></h1>
+  </div>
+
+  <div class="status-bar">
+    <div class="stat"><div class="stat-label">Next Workout</div><div class="stat-value accent" id="stat-next">A</div></div>
+    <div class="stat"><div class="stat-label">Days Since Last</div><div class="stat-value" id="stat-days">—</div></div>
+    <div class="stat"><div class="stat-label">Total Sessions</div><div class="stat-value" id="stat-total">0</div></div>
+    <div class="stat"><div class="stat-label">Cycle Position</div><div class="stat-value" id="stat-cycle">1/4</div></div>
+  </div>
+
+  <!-- Setup Panel -->
+  <div id="setup-section">
+    <p class="section-title">Set Up Your Exercises</p>
+    <div class="setup-panel">
+      <p>Type in your exercises for each workout. Click "+ Add Exercise" to add more. Click "Save Exercises" when you're done.</p>
+      <div class="setup-grid" id="setup-grid"></div>
+      <button class="btn-save-setup" onclick="saveSetup()">Save Exercises</button>
+    </div>
+  </div>
+
+  <!-- Tracker -->
+  <div id="tracker-section" style="display:none">
+    <button class="btn-edit-setup" onclick="showSetup()">✎ Edit Exercises</button>
+
+    <p class="section-title">Select Workout</p>
+    <div class="workout-tabs" id="workout-tabs"></div>
+
+    <div class="date-row">
+      <label>Session Date</label>
+      <input type="date" id="session-date"/>
+    </div>
+
+    <div class="recovery-alert" id="recovery-alert" style="display:none">
+      ⚠ RECOVERY ALERT — Less than 4 days since last session. Mentzer recommends full recovery before training.
+    </div>
+
+    <div id="exercise-cards"></div>
+
+    <div class="save-area">
+      <button class="btn-save" onclick="saveSession()">Log Session</button>
+      <div class="save-meta" id="save-meta"></div>
+    </div>
+  </div>
+
+  <div class="history-section">
+    <p class="section-title">Session History</p>
+    <div id="history-list"></div>
+  </div>
+</div>
+
+<script>
+const CYCLE = [1,2,3,4];
+const WORKOUT_LABELS = {1:"Workout A",2:"Workout B",3:"Workout C",4:"Workout D"};
+
+let workouts = JSON.parse(localStorage.getItem("mentzer_workouts") || "null") || {
+  1:{exercises:["","",""]},
+  2:{exercises:["","",""]},
+  3:{exercises:["","",""]},
+  4:{exercises:["","","",""]}
+};
+let history = JSON.parse(localStorage.getItem("mentzer_history") || "[]");
+let activeWorkout = 1;
+let setupMode = !localStorage.getItem("mentzer_workouts");
+
+function today() { return new Date().toISOString().slice(0,10); }
+function daysBetween(d1,d2) {
+  const a=new Date(d1);a.setHours(0,0,0,0);
+  const b=new Date(d2);b.setHours(0,0,0,0);
+  return Math.round((b-a)/(1000*60*60*24));
+}
+function getNextWorkout() {
+  if(!history.length) return 1;
+  const last=history[history.length-1];
+  return CYCLE[(CYCLE.indexOf(last.workoutNum)+1)%CYCLE.length];
+}
+function getPrevSession(num) {
+  const s=history.filter(h=>h.workoutNum===num);
+  return s.length?s[s.length-1]:null;
+}
+function saveToStorage() {
+  localStorage.setItem("mentzer_history",JSON.stringify(history));
+  localStorage.setItem("mentzer_workouts",JSON.stringify(workouts));
+}
+function showToast(msg) {
+  const t=document.createElement("div");t.className="toast";t.textContent=msg;
+  document.body.appendChild(t);setTimeout(()=>t.remove(),2200);
+}
+
+// SETUP
+function renderSetup() {
+  const grid=document.getElementById("setup-grid");grid.innerHTML="";
+  CYCLE.forEach(num=>{
+    const div=document.createElement("div");div.className="setup-workout";
+    div.innerHTML=`<div class="setup-workout-title">${WORKOUT_LABELS[num]}</div><div id="setup-exlist-${num}"></div><button class="btn-add" onclick="addExercise(${num})">+ Add Exercise</button>`;
+    grid.appendChild(div);
+    renderSetupExList(num);
+  });
+}
+function renderSetupExList(num) {
+  const c=document.getElementById(`setup-exlist-${num}`);c.innerHTML="";
+  workouts[num].exercises.forEach((ex,i)=>{
+    const row=document.createElement("div");row.className="setup-exercise-row";
+    row.innerHTML=`<input type="text" placeholder="e.g. Bench Press" value="${ex}" oninput="workouts[${num}].exercises[${i}]=this.value"/>
+      <button class="btn-remove" onclick="removeExercise(${num},${i})">✕</button>`;
+    c.appendChild(row);
+  });
+}
+function addExercise(num) { workouts[num].exercises.push(""); renderSetupExList(num); }
+function removeExercise(num,i) { workouts[num].exercises.splice(i,1); renderSetupExList(num); }
+function saveSetup() {
+  CYCLE.forEach(num=>{
+    workouts[num].exercises=workouts[num].exercises.map(e=>e.trim()).filter(e=>e.length>0);
+    if(!workouts[num].exercises.length) workouts[num].exercises=["Exercise 1"];
+  });
+  saveToStorage();
+  setupMode=false;
+  document.getElementById("setup-section").style.display="none";
+  document.getElementById("tracker-section").style.display="block";
+  activeWorkout=getNextWorkout();
+  render();
+  showToast("EXERCISES SAVED");
+}
+function showSetup() {
+  document.getElementById("setup-section").style.display="block";
+  document.getElementById("tracker-section").style.display="none";
+  renderSetup();
+}
+
+// TRACKER
+function renderStats() {
+  const next=getNextWorkout();
+  document.getElementById("stat-next").textContent=WORKOUT_LABELS[next].replace("Workout ","");
+  document.getElementById("stat-total").textContent=history.length;
+  document.getElementById("stat-cycle").textContent=history.length===0?"1/4":`${((history.length-1)%4)+1}/4`;
+  const last=history[history.length-1];
+  const el=document.getElementById("stat-days");
+  if(!last){el.textContent="—";el.className="stat-value";}
+  else{const d=daysBetween(last.date,today());el.textContent=d+"d";el.className="stat-value "+(d>=4?"ok":"warn");}
+}
+function renderTabs() {
+  const next=getNextWorkout();
+  const c=document.getElementById("workout-tabs");c.innerHTML="";
+  CYCLE.forEach(num=>{
+    const btn=document.createElement("button");
+    btn.className="workout-tab"+(activeWorkout===num?" active":"")+(next===num&&activeWorkout!==num?" next-up":"");
+    btn.innerHTML=WORKOUT_LABELS[num]+(next===num&&activeWorkout!==num?'<div style="font-size:9px;letter-spacing:0.1em;margin-top:2px">NEXT UP</div>':"");
+    btn.onclick=()=>{activeWorkout=num;renderTabs();renderExercises();};
+    c.appendChild(btn);
+  });
+}
+function renderExercises() {
+  const dateVal=document.getElementById("session-date").value;
+  const last=history[history.length-1];
+  document.getElementById("recovery-alert").style.display=(last&&dateVal&&daysBetween(last.date,dateVal)<4)?"block":"none";
+  document.getElementById("save-meta").textContent=WORKOUT_LABELS[activeWorkout].toUpperCase()+" · "+(dateVal||"");
+  const prev=getPrevSession(activeWorkout);
+  const c=document.getElementById("exercise-cards");c.innerHTML="";
+  workouts[activeWorkout].exercises.forEach((ex,idx)=>{
+    const prevEx=prev?(prev.exercises[ex]||{}):null;
+    const key=`w${activeWorkout}_${idx}`;
+    const card=document.createElement("div");card.className="exercise-card";
+    card.innerHTML=`
+      <div class="exercise-header">
+        <div class="exercise-label">${ex}</div>
+        <div class="pb-badge" id="badge-${key}" style="display:none">↑ IMPROVEMENT</div>
+      </div>
+      <div class="exercise-body">
+        <div class="field">
+          <label>Weight (kg/lb)</label>
+          <input type="number" id="weight-${key}" placeholder="0" oninput="checkImp('${ex.replace(/'/g,"\\'")}',${idx})"/>
+          ${prevEx?`<div class="prev-value">prev: <span>${prevEx.weight||"—"}</span> <span id="wi-${key}"></span></div>`:'<div class="prev-value" style="color:#ffffff">first session</div>'}
+        </div>
+        <div class="field">
+          <label>Reps</label>
+          <input type="number" id="reps-${key}" placeholder="0" oninput="checkImp('${ex.replace(/'/g,"\\'")}',${idx})"/>
+          ${prevEx?`<div class="prev-value">prev: <span>${prevEx.reps||"—"}</span> <span id="ri-${key}"></span></div>`:""}
+        </div>
+        <div class="field">
+          <label>TUT (sec)</label>
+          <input type="number" id="tut-${key}" placeholder="0" oninput="checkImp('${ex.replace(/'/g,"\\'")}',${idx})"/>
+          ${prevEx?`<div class="prev-value">prev: <span>${prevEx.tut||"—"}</span> <span id="ti-${key}"></span></div>`:""}
+        </div>
+        <div class="field">
+          <label>Failure / Notes</label>
+          <input type="text" id="notes-${key}" placeholder="e.g. failed rep 7"/>
+          ${prevEx&&prevEx.notes?`<div class="prev-value">prev: <span>${prevEx.notes}</span></div>`:""}
+        </div>
+      </div>`;
+    c.appendChild(card);
+  });
+}
+function checkImp(ex,idx) {
+  const key=`w${activeWorkout}_${idx}`;
+  const prev=getPrevSession(activeWorkout);if(!prev)return;
+  const prevEx=prev.exercises[ex]||{};
+  function ind(cur,old,elId){
+    const el=document.getElementById(elId);if(!el)return false;
+    const c=parseFloat(cur),o=parseFloat(old);
+    if(isNaN(c)||isNaN(o)||o===0){el.textContent="";return false;}
+    if(c>o){el.textContent="▲";el.className="up";return true;}
+    if(c<o){el.textContent="▼";el.className="down";return false;}
+    el.textContent="—";el.className="same";return false;
+  }
+  const wUp=ind(document.getElementById(`weight-${key}`)?.value,prevEx.weight,`wi-${key}`);
+  const rUp=ind(document.getElementById(`reps-${key}`)?.value,prevEx.reps,`ri-${key}`);
+  const tUp=ind(document.getElementById(`tut-${key}`)?.value,prevEx.tut,`ti-${key}`);
+  const badge=document.getElementById(`badge-${key}`);
+  if(badge)badge.style.display=(wUp||rUp||tUp)?"block":"none";
+}
+function saveSession() {
+  const dateVal=document.getElementById("session-date").value;
+  if(!dateVal){alert("Please select a session date.");return;}
+  const session={id:Date.now(),date:dateVal,workoutNum:activeWorkout,workoutName:WORKOUT_LABELS[activeWorkout],exercises:{}};
+  workouts[activeWorkout].exercises.forEach((ex,idx)=>{
+    const key=`w${activeWorkout}_${idx}`;
+    session.exercises[ex]={
+      weight:document.getElementById(`weight-${key}`)?.value||"",
+      reps:document.getElementById(`reps-${key}`)?.value||"",
+      tut:document.getElementById(`tut-${key}`)?.value||"",
+      notes:document.getElementById(`notes-${key}`)?.value||""
+    };
+  });
+  history.push(session);saveToStorage();
+  activeWorkout=getNextWorkout();render();showToast("SESSION SAVED");
+}
+function deleteSession(id) {
+  if(!confirm("Delete this session?"))return;
+  history=history.filter(s=>s.id!==id);saveToStorage();render();
+}
+function toggleHistory(id){document.getElementById("hbody-"+id).classList.toggle("open");}
+function renderHistory() {
+  const c=document.getElementById("history-list");
+  if(!history.length){c.innerHTML='<div class="empty-state">No sessions logged yet.<br>Set up your exercises above.</div>';return;}
+  c.innerHTML="";
+  [...history].reverse().forEach((session,i,arr)=>{
+    const prev=arr[i+1];
+    const daysRest=prev?daysBetween(prev.date,session.date):null;
+    const entry=document.createElement("div");entry.className="history-entry";
+    const restBadge=daysRest!==null?`<span class="rest-badge ${daysRest>=4?'rest-ok':'rest-warn'}">${daysRest}d REST</span>`:"";
+    const exList=workouts[session.workoutNum]?.exercises||Object.keys(session.exercises);
+    let rows=`<div class="history-row"><div class="history-row-label">Exercise</div><div class="history-row-label">Weight</div><div class="history-row-label">Reps</div><div class="history-row-label">TUT</div></div>`;
+    exList.forEach(ex=>{
+      const d=session.exercises[ex]||{};
+      rows+=`<div class="history-row"><div class="history-ex-name">${ex}</div><div>${d.weight||"—"}</div><div>${d.reps||"—"}</div><div>${d.tut||"—"}</div></div>`;
+    });
+    entry.innerHTML=`
+      <div class="history-entry-header" onclick="toggleHistory(${session.id})">
+        <div class="history-entry-date"><span style="color:#4fc3f7;margin-right:8px">${session.workoutName}</span>${session.date}</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          ${restBadge}
+          <button class="delete-btn" onclick="event.stopPropagation();deleteSession(${session.id})">DELETE</button>
+          <span style="color:#ffffff">▶</span>
+        </div>
+      </div>
+      <div class="history-body" id="hbody-${session.id}">${rows}</div>`;
+    c.appendChild(entry);
+  });
+}
+function render(){renderStats();renderTabs();renderExercises();renderHistory();}
+
+// Init
+document.getElementById("session-date").value=today();
+document.getElementById("session-date").addEventListener("change",renderExercises);
+if(setupMode){
+  document.getElementById("setup-section").style.display="block";
+  document.getElementById("tracker-section").style.display="none";
+  renderSetup();
+}else{
+  document.getElementById("setup-section").style.display="none";
+  document.getElementById("tracker-section").style.display="block";
+  activeWorkout=getNextWorkout();render();
+}
+</script>
+</body>
+</html>
